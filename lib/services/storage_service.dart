@@ -51,4 +51,16 @@ class StorageService {
   void saveThemeMode(bool isDark) {
     _box.write(_keyDarkMode, isDark);
   }
+
+  Map<String, double>? getMonthlyIncomes() {
+    final rawData = _box.read<Map>('monthly_incomes');
+    if (rawData != null) {
+      return rawData.map((key, value) => MapEntry(key.toString(), (value as num).toDouble()));
+    }
+    return null;
+  }
+
+  void saveMonthlyIncomes(Map<String, double> incomeMap) {
+    _box.write('monthly_incomes', incomeMap);
+  }
 }

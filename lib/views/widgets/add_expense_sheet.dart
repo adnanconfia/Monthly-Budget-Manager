@@ -25,21 +25,46 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   final noteController = TextEditingController();
 
   CategoryModel? selectedCategory;
-  DateTime selectedDate = DateTime.now();
+  late DateTime selectedDate;
 
   @override
   void initState() {
     super.initState();
+
+    final now = DateTime.now();
+
     if (widget.existingExpense != null) {
+      // Edit Mode
       final exp = widget.existingExpense!;
       titleController.text = exp.title;
       amountController.text = exp.amount.toString();
       noteController.text = exp.note;
-      selectedDate = exp.date;
+      selectedDate = exp.date.isAfter(now) ? now : exp.date;
       selectedCategory = controller.categories.firstWhereOrNull((c) => c.id == exp.categoryId);
-    } else if (controller.categories.isNotEmpty) {
-      selectedCategory = controller.categories.first;
+    } else {
+      // New Expense Mode
+      final activeTimelineDate = controller.selectedDate.value;
+
+      if (activeTimelineDate.year == now.year && activeTimelineDate.month == now.month) {
+        selectedDate = now;
+      } else if (activeTimelineDate.isAfter(now)) {
+        selectedDate = now;
+      } else {
+        selectedDate = activeTimelineDate;
+      }
+
+      if (controller.categories.isNotEmpty) {
+        selectedCategory = controller.categories.first;
+      }
     }
+  }
+
+  @override
+  void dispose() {
+    titleController.dispose();
+    amountController.dispose();
+    noteController.dispose();
+    super.dispose();
   }
 
   @override
@@ -71,6 +96,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       child: Form(
         key: formKey,
         child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag, // 👈 Auto-hide keyboard on drag
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,8 +155,12 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               ),
               const SizedBox(height: 16),
               Obx(() {
+                final currentDropdownCategory = controller.categories.firstWhereOrNull(
+                      (c) => c.id == selectedCategory?.id,
+                ) ?? (controller.categories.isNotEmpty ? controller.categories.first : null);
+
                 return DropdownButtonFormField<CategoryModel>(
-                  value: selectedCategory,
+                  value: currentDropdownCategory,
                   decoration: InputDecoration(
                     labelText: 'Expense Category',
                     filled: true,
@@ -140,20 +170,18 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  items: [
-                    ...controller.categories.map((cat) {
-                      return DropdownMenuItem<CategoryModel>(
-                        value: cat,
-                        child: Row(
-                          children: [
-                            Icon(getIconFromString(cat.iconName), color: cat.color),
-                            const SizedBox(width: 10),
-                            Text(cat.name),
-                          ],
-                        ),
-                      );
-                    }).toList(),
-                  ],
+                  items: controller.categories.map((cat) {
+                    return DropdownMenuItem<CategoryModel>(
+                      value: cat,
+                      child: Row(
+                        children: [
+                          Icon(getIconFromString(cat.iconName), color: cat.color),
+                          const SizedBox(width: 10),
+                          Text(cat.name),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                   onChanged: (cat) {
                     setState(() {
                       selectedCategory = cat;
@@ -189,12 +217,19 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       ),
                       IconButton(
                         onPressed: () async {
+                          // 🚫 KEYBOARD CLOSE KARNE KE LIYE:
+                          FocusScope.of(context).unfocus();
+
+                          final now = DateTime.now();
+                          final safeInitialDate = selectedDate.isAfter(now) ? now : selectedDate;
+
                           final picked = await showDatePicker(
                             context: context,
-                            initialDate: selectedDate,
-                            firstDate: DateTime(2020),
-                            lastDate: DateTime(2030),
+                            initialDate: safeInitialDate,
+                            firstDate: DateTime(2025),
+                            lastDate: now,
                           );
+
                           if (picked != null) {
                             setState(() {
                               selectedDate = picked;
@@ -232,10 +267,15 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                 ),
                 onPressed: () {
                   if (formKey.currentState!.validate()) {
+                    if (selectedCategory == null && controller.categories.isNotEmpty) {
+                      selectedCategory = controller.categories.first;
+                    }
+
                     if (selectedCategory == null) {
                       Get.snackbar('Error', 'Please select a valid category');
                       return;
                     }
+
                     if (isEdit) {
                       controller.editExpense(ExpenseModel(
                         id: widget.existingExpense!.id,

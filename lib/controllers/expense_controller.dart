@@ -11,9 +11,11 @@ class ExpenseController extends GetxController {
   final _uuid = const Uuid();
 
   // Reactive variables
-  final income = 0.0.obs;
   final categories = <CategoryModel>[].obs;
   final expenses = <ExpenseModel>[].obs;
+
+  // Independent Monthly Incomes Storage (Key: "YYYY-MM")
+  final monthlyIncomes = <String, double>{}.obs;
 
   // Dynamic Month Selection State
   final selectedDate = DateTime.now().obs;
@@ -25,7 +27,11 @@ class ExpenseController extends GetxController {
   }
 
   void loadData() {
-    income.value = _storage.getIncome();
+    // Load monthly incomes map
+    final loadedIncomes = _storage.getMonthlyIncomes();
+    if (loadedIncomes != null) {
+      monthlyIncomes.assignAll(loadedIncomes);
+    }
 
     final loadedCats = _storage.getCategories();
     if (loadedCats.isEmpty) {
@@ -53,14 +59,56 @@ class ExpenseController extends GetxController {
     ];
   }
 
-  void setIncome(double val) {
-    income.value = val;
-    _storage.saveIncome(val);
+  // --- Month Key Helper ---
+  String _getMonthKey(int month, int year) {
+    final m = month.toString().padLeft(2, '0');
+    return '$year-$m';
   }
 
+  // --- Isolated Income Management ---
+  double getIncomeForMonth(int month, int year) {
+    final key = _getMonthKey(month, year);
+    return monthlyIncomes[key] ?? 0.0;
+  }
+
+  double get currentIncome {
+    return getIncomeForMonth(selectedDate.value.month, selectedDate.value.year);
+  }
+
+  // Backward compatibility getter for screens referencing income.value
+  RxDouble get income => currentIncome.obs;
+
+  void setIncomeForMonth(double val, {int? month, int? year}) {
+    final targetMonth = month ?? selectedDate.value.month;
+    final targetYear = year ?? selectedDate.value.year;
+    final key = _getMonthKey(targetMonth, targetYear);
+
+    monthlyIncomes[key] = val;
+    monthlyIncomes.refresh();
+    _storage.saveMonthlyIncomes(monthlyIncomes);
+  }
+
+  void setIncome(double val) {
+    setIncomeForMonth(val);
+  }
+
+  // --- Date Timeline Selection ---
   void changeMonth(DateTime newDate) {
     selectedDate.value = newDate;
     expenses.refresh();
+    monthlyIncomes.refresh();
+  }
+
+  void setSelectedYear(int year) {
+    selectedDate.value = DateTime(year, selectedDate.value.month, 1);
+    expenses.refresh();
+    monthlyIncomes.refresh();
+  }
+
+  void setSelectedMonth(int month) {
+    selectedDate.value = DateTime(selectedDate.value.year, month, 1);
+    expenses.refresh();
+    monthlyIncomes.refresh();
   }
 
   void addCategory(String name, String iconName, Color color) {
@@ -94,10 +142,7 @@ class ExpenseController extends GetxController {
     );
 
     expenses.add(newExp);
-
-    // `.refresh()` ke sath pure list layout reassigning stream ko refresh kiya hai
     expenses.refresh();
-
     _storage.saveExpenses(expenses);
   }
 
@@ -129,51 +174,50 @@ class ExpenseController extends GetxController {
     return monthlyExpenses.fold(0.0, (sum, item) => sum + item.amount);
   }
 
-  double get remainingMonthlySavings {
-    return income.value - totalMonthlyExpenses;
+  double getMonthlyExpensesSum(int month, int year) {
+    return expenses
+        .where((exp) => exp.date.month == month && exp.date.year == year)
+        .fold(0.0, (sum, item) => sum + item.amount);
   }
 
-  // --- SMART CALCULATION LOGIC (COMPLETELY ROBUST MATCHING) ---
+  double get remainingMonthlySavings {
+    return currentIncome - totalMonthlyExpenses;
+  }
+
+  // --- SMART CALCULATION LOGIC ---
 
   double getCategorySpend(String categoryId) {
-    // Current category find karein taake uska standard name string mil sake
     final currentCat = categories.firstWhereOrNull((c) => c.id == categoryId);
     final String catName = currentCat?.name.toLowerCase().trim() ?? "";
     final String normalizedTargetId = categoryId.toLowerCase().trim();
 
     return monthlyExpenses.where((e) {
       final String savedIdOrName = e.categoryId.toLowerCase().trim();
-
-      // Safety Check: Agar input raw text name ho ya default static structure ID ho, dono filter pakar le
       return savedIdOrName == normalizedTargetId || savedIdOrName == catName;
     }).fold(0.0, (sum, item) => sum + item.amount);
   }
 
-  // FIXED: Function corrected to calculate percentage relative to total income pool
   double getCategoryPercentage(String categoryId) {
-    final double totalIncomePool = income.value;
-
-    // Safety check for fallback to prevent division by zero
+    final double totalIncomePool = currentIncome;
     if (totalIncomePool <= 0) return 0.0;
-
-    // Calculation based on Total Income instead of Total Expense
     return (getCategorySpend(categoryId) / totalIncomePool) * 100;
   }
 
   // --- General Calculations Fallbacks ---
-  double get totalExpenses => expenses.fold(0.0, (sum, item) => sum + item.amount);
-  double get remainingSavings => income.value - totalExpenses;
-  int get transactionCount => expenses.length;
+  double get totalExpenses => totalMonthlyExpenses;
+  double get remainingSavings => remainingMonthlySavings;
+  int get transactionCount => monthlyExpenses.length;
 
   double get totalPercentSpent {
-    if (income.value <= 0) return 0.0;
-    return (totalMonthlyExpenses / income.value) * 100;
+    if (currentIncome <= 0) return 0.0;
+    return (totalMonthlyExpenses / currentIncome) * 100;
   }
 
   String get highestExpenseCategory {
-    if (expenses.isEmpty) return "None";
+    final mExpenses = monthlyExpenses;
+    if (mExpenses.isEmpty) return "None";
     Map<String, double> catSum = {};
-    for (var exp in expenses) {
+    for (var exp in mExpenses) {
       catSum[exp.categoryId] = (catSum[exp.categoryId] ?? 0.0) + exp.amount;
     }
     String topId = "";

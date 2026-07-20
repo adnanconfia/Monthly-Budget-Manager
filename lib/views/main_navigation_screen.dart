@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_expense_tracker/controllers/nav_controller.dart';
-import 'package:daily_expense_tracker/views/dashboard/dashboard_screen.dart';
+import 'package:daily_expense_tracker/views/home/premium_home_screen.dart'; // Central Navigation Timeline Hub
 import 'package:daily_expense_tracker/views/history/history_screen.dart';
 import 'package:daily_expense_tracker/views/analytics/analytics_hub_screen.dart'; // Merged Hub
 import 'package:daily_expense_tracker/views/settings/settings_screen.dart';
@@ -17,9 +17,9 @@ class MainNavigationScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final size = MediaQuery.of(context).size;
 
-    // 4 Symmetrical screens (Balanced 2 on Left, 2 on Right)
+    // 4 Symmetrical screens (Dashboard replaced with Premium Home Timeline Hub)
     final List<Widget> screens = [
-      const DashboardScreen(),
+      const PremiumHomeScreen(),
       const HistoryScreen(),
       const AnalyticsHubScreen(), // Unified Hub (Stats + Categories)
       const SettingsScreen(),
@@ -53,7 +53,7 @@ class MainNavigationScreen extends StatelessWidget {
               height: 64,
               child: Row(
                 children: [
-                  // Left Side Tabs (Home & Transactions) - Exact 50% spacing block
+                  // Left Side Tabs (Home Timeline & Transactions)
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -64,10 +64,10 @@ class MainNavigationScreen extends StatelessWidget {
                     ),
                   ),
 
-                  // Perfect Center Gap dynamically scaled for the Floating Action Button
+                  // Center Gap for Floating Action Button
                   SizedBox(width: size.width * 0.16),
 
-                  // Right Side Tabs (Stats/Hub & Settings) - Exact 50% spacing block
+                  // Right Side Tabs (Analytics & Settings)
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,

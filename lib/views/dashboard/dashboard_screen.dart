@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 import 'package:daily_expense_tracker/controllers/expense_controller.dart';
 import 'package:daily_expense_tracker/controllers/theme_controller.dart';
@@ -20,6 +21,66 @@ class DashboardScreen extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Scaffold(
+      appBar: AppBar(
+        title: Obx(() {
+          final activeDate = controller.selectedDate.value;
+          final monthYearStr = DateFormat('MMMM yyyy').format(activeDate);
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Dashboard',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                ),
+              ),
+              const SizedBox(height: 2),
+              // 🌟 ANIMATED MONTH & YEAR SUBTITLE
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 300),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: SlideTransition(
+                      position: Tween<Offset>(
+                        begin: const Offset(0.0, -0.2),
+                        end: Offset.zero,
+                      ).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Row(
+                  key: ValueKey<String>(monthYearStr),
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.calendar_month_outlined,
+                      size: 13,
+                      color: theme.colorScheme.primary.withOpacity(0.85),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      monthYearStr,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3,
+                        color: theme.colorScheme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+        }),
+        centerTitle: true,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -27,7 +88,7 @@ class DashboardScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // 1. Compact Header
+              // 1. Compact Header Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -191,8 +252,6 @@ class DashboardScreen extends StatelessWidget {
                 ],
               ),
               Obx(() {
-                // FIXED: Dono lists aur income parameters ko listen karwa diya hai
-                // Ab naya expense add ho ya income update ho, ye grid automatically rebuild hoga
                 final _ = controller.expenses.length;
                 final __ = controller.income.value;
 
