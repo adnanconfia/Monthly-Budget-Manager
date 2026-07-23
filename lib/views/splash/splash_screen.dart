@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-// FIXED: Main navigation screen ka import lazmi add karein
-import 'package:daily_expense_tracker/views/main_navigation_screen.dart';
+// FIXED: Login screen par navigate karne ke liye import
+import 'package:daily_expense_tracker/views/auth/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -72,13 +72,13 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
     await Future.delayed(const Duration(milliseconds: 600));
     if (mounted) _textController.forward();
 
-    Timer(const Duration(milliseconds: 2800), _navigateToHome);
+    Timer(const Duration(milliseconds: 2800), _navigateToLogin);
   }
 
-  void _navigateToHome() {
-    // FIXED: DashboardScreen ki jagah ab MainNavigationScreen par navigate karega
+  void _navigateToLogin() {
+    // FIXED: Splash ke baad automatically LoginScreen par navigate karega
     Get.off(
-          () => const MainNavigationScreen(),
+          () => LoginScreen(),
       transition: Transition.fadeIn,
       duration: const Duration(milliseconds: 800),
       curve: Curves.easeInOut,
@@ -261,17 +261,17 @@ class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMix
               width: 32,
               height: 24,
               decoration: BoxDecoration(
-                  color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(8),
-                    bottomRight: Radius.circular(8),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 4,
-                    )
-                  ]
+                color: isDarkMode ? const Color(0xFF1E293B) : Colors.white,
+                borderRadius: const BorderRadius.only(
+                  topRight: Radius.circular(8),
+                  bottomRight: Radius.circular(8),
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.12),
+                    blurRadius: 4,
+                  )
+                ],
               ),
             ),
           ),

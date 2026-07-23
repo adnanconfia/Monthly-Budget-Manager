@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "759317913900",
+    "firebase_url": "https://daily-expense-tracker-e3a6a-default-rtdb.firebaseio.com",
+    "project_id": "daily-expense-tracker-e3a6a",
+    "storage_bucket": "daily-expense-tracker-e3a6a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:759317913900:android:8bae0b463d99d9e273cc89",
+        "android_client_info": {
+          "package_name": "com.confiatech.daily_expense_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCLdkckRtL1-WNA8fyUgr-NHZZQLS77X1c"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
