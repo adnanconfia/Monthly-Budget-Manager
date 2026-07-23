@@ -29,6 +29,54 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Get.offAll(() => LoginScreen());
       });
+    } else {
+      // Automatically scroll to current year and its active month on startup
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final currentYear = DateTime.now().year;
+        final yearIndex = currentYear - startYear;
+        if (yearIndex >= 0) {
+          _scrollToYear(currentYear, yearIndex);
+        }
+      });
+    }
+
+    // Listen to main scroll to update active year chip dynamically
+    _mainScrollController.addListener(_onMainScroll);
+  }
+
+  void _onMainScroll() {
+    if (!_mainScrollController.hasClients) return;
+    final offset = _mainScrollController.offset;
+    final currentNow = DateTime.now();
+    final totalYearsCount = (currentNow.year - startYear) + 1;
+
+    final context = Get.context;
+    double rowHeight = 150.0;
+    if (context != null) {
+      final screenWidth = MediaQuery.of(context).size.width;
+      final itemWidth = (screenWidth - 32 - 12) / 2;
+      final itemHeight = itemWidth / 1.25;
+      rowHeight = itemHeight + 12;
+    }
+    const headerHeight = 55.0;
+    final yearSectionHeight = headerHeight + (6 * rowHeight) + 8;
+
+    final estimatedYearIndex = (offset / yearSectionHeight).floor().clamp(0, totalYearsCount - 1);
+    final calculatedYear = startYear + estimatedYearIndex;
+
+    if (calculatedYear != _selectedYearHeader) {
+      setState(() {
+        _selectedYearHeader = calculatedYear;
+      });
+      final yearIndex = calculatedYear - startYear;
+      final double targetChipOffset = yearIndex * 80.0;
+      if (_yearBarScrollController.hasClients) {
+        _yearBarScrollController.animateTo(
+          targetChipOffset.clamp(0.0, _yearBarScrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+        );
+      }
     }
   }
 
@@ -46,20 +94,45 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
 
     final int yearIndex = year - startYear;
     if (yearIndex >= 0) {
-      final double estimatedOffset = yearIndex * 370.0;
-      _mainScrollController.animateTo(
-        estimatedOffset.clamp(0.0, _mainScrollController.position.maxScrollExtent),
-        duration: const Duration(milliseconds: 500),
+      final context = Get.context;
+      double rowHeight = 150.0;
+      if (context != null) {
+        final screenWidth = MediaQuery.of(context).size.width;
+        final itemWidth = (screenWidth - 32 - 12) / 2;
+        final itemHeight = itemWidth / 1.25;
+        rowHeight = itemHeight + 12;
+      }
+      const headerHeight = 55.0;
+      final yearSectionHeight = headerHeight + (6 * rowHeight) + 8;
+
+      double targetOffset = 0.0;
+      if (year == DateTime.now().year) {
+        // Current year: scroll to active month
+        final targetMonth = DateTime.now().month;
+        final monthRowIndex = (targetMonth - 1) ~/ 2;
+        targetOffset = (yearIndex * yearSectionHeight) + headerHeight + (monthRowIndex * rowHeight);
+      } else {
+        // Past years (like 2025): scroll to the very top of that year's section header
+        targetOffset = yearIndex * yearSectionHeight;
+      }
+
+      if (_mainScrollController.hasClients) {
+        _mainScrollController.animateTo(
+          targetOffset.clamp(0.0, _mainScrollController.position.maxScrollExtent),
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    }
+
+    if (_yearBarScrollController.hasClients) {
+      final double targetChipOffset = index * 80.0;
+      _yearBarScrollController.animateTo(
+        targetChipOffset.clamp(0.0, _yearBarScrollController.position.maxScrollExtent),
+        duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     }
-
-    final double targetChipOffset = index * 80.0;
-    _yearBarScrollController.animateTo(
-      targetChipOffset.clamp(0.0, _yearBarScrollController.position.maxScrollExtent),
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
   }
 
   // --- Logout Confirmation Dialog ---
@@ -433,6 +506,7 @@ class _PremiumHomeScreenState extends State<PremiumHomeScreen> {
 
   @override
   void dispose() {
+    _mainScrollController.removeListener(_onMainScroll);
     _mainScrollController.dispose();
     _yearBarScrollController.dispose();
     super.dispose();

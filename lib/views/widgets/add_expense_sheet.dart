@@ -11,11 +11,9 @@ import 'package:daily_expense_tracker/views/widgets/icon_mapper.dart';
 class AddExpenseSheet extends StatefulWidget {
   final ExpenseModel? existingExpense;
   const AddExpenseSheet({super.key, this.existingExpense});
-
   @override
   State<AddExpenseSheet> createState() => _AddExpenseSheetState();
 }
-
 class _AddExpenseSheetState extends State<AddExpenseSheet> {
   final controller = Get.find<ExpenseController>();
   final formKey = GlobalKey<FormState>();
@@ -27,6 +25,13 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
   CategoryModel? selectedCategory;
   late DateTime selectedDate;
 
+  // Special sentinel model to represent "+ Add Custom Category" in the dropdown list
+  final CategoryModel _addCustomCategorySentinel = CategoryModel(
+    id: '__add_custom_category_sentinel__',
+    name: '+ Add Custom Category',
+    iconName: 'add_circle_outline',
+    colorHex: 0xFF4CAF50, // Green
+  );
   @override
   void initState() {
     super.initState();
@@ -67,6 +72,90 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
     super.dispose();
   }
 
+  // Dialog for adding a custom category with instant UI selection & permanent saving
+  void _showAddCustomCategoryDialog() {
+    final TextEditingController customNameController = TextEditingController();
+    final customFormKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Add Custom Category'),
+          content: Form(
+            key: customFormKey,
+            child: TextFormField(
+              controller: customNameController,
+              autofocus: true,
+              decoration: const InputDecoration(
+                labelText: 'Category Name',
+                hintText: 'Enter category name (e.g. Game)',
+              ),
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Category name cannot be empty';
+                }
+                final trimmedName = value.trim().toLowerCase();
+                final exists = controller.categories.any(
+                      (c) => c.name.trim().toLowerCase() == trimmedName,
+                );
+                if (exists) {
+                  return 'Category already exists';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (customFormKey.currentState!.validate()) {
+                  final newCategoryName = customNameController.text.trim();
+                  Navigator.pop(dialogContext); // Close dialog
+
+                  // 1. Instant UI Feedback: Set a temporary model so it shows up immediately
+                  final tempCategory = CategoryModel(
+                    id: 'temp_${DateTime.now().millisecondsSinceEpoch}',
+                    name: newCategoryName,
+                    iconName: 'bookmark',
+                    colorHex: 0xFF009688,
+                  );
+
+                  setState(() {
+                    selectedCategory = tempCategory;
+                  });
+
+                  // 2. Save custom category permanently via ExpenseController to database
+                  await controller.addCategory(
+                    newCategoryName,
+                    'bookmark',
+                    const Color(0xFF009688), // Teal
+                  );
+
+                  // 3. Map to the actual saved category from controller once available
+                  final createdCategory = controller.categories.firstWhereOrNull(
+                        (c) => c.name.trim().toLowerCase() == newCategoryName.toLowerCase(),
+                  );
+
+                  if (createdCategory != null) {
+                    setState(() {
+                      selectedCategory = createdCategory;
+                    });
+                  }
+                }
+              },
+              child: const Text('Add & Select'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -96,7 +185,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
       child: Form(
         key: formKey,
         child: SingleChildScrollView(
-          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag, // 👈 Auto-hide keyboard on drag
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -155,9 +244,46 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
               ),
               const SizedBox(height: 16),
               Obx(() {
-                final currentDropdownCategory = controller.categories.firstWhereOrNull(
-                      (c) => c.id == selectedCategory?.id,
-                ) ?? (controller.categories.isNotEmpty ? controller.categories.first : null);
+                final categoriesList = controller.categories;
+
+                // Check if selectedCategory exists in the list, otherwise use temp match or first item
+                CategoryModel? currentDropdownCategory;
+                if (selectedCategory != null) {
+                  currentDropdownCategory = categoriesList.firstWhereOrNull(
+                        (c) => c.id == selectedCategory?.id || c.name.toLowerCase() == selectedCategory?.name.toLowerCase(),
+                  ) ?? selectedCategory; // Fallback to temp selected category if not yet in list
+                } else {
+                  currentDropdownCategory = categoriesList.isNotEmpty ? categoriesList.first : null;
+                }
+
+                // Combine existing categories with the sentinel item at the very end
+                final dropdownItems = <DropdownMenuItem<CategoryModel>>[
+                  ...categoriesList.map((cat) {
+                    return DropdownMenuItem<CategoryModel>(
+                      value: cat,
+                      child: Row(
+                        children: [
+                          Icon(getIconFromString(cat.iconName), color: cat.color),
+                          const SizedBox(width: 10),
+                          Text(cat.name),
+                        ],
+                      ),
+                    );
+                  }),
+                  DropdownMenuItem<CategoryModel>(
+                    value: _addCustomCategorySentinel,
+                    child: Row(
+                      children: const [
+                        Icon(Icons.add_circle_outline, color: Colors.green),
+                        SizedBox(width: 10),
+                        Text(
+                          '+ Add Custom Category',
+                          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                  ),
+                ];
 
                 return DropdownButtonFormField<CategoryModel>(
                   value: currentDropdownCategory,
@@ -170,40 +296,20 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       borderSide: BorderSide.none,
                     ),
                   ),
-                  items: controller.categories.map((cat) {
-                    return DropdownMenuItem<CategoryModel>(
-                      value: cat,
-                      child: Row(
-                        children: [
-                          Icon(getIconFromString(cat.iconName), color: cat.color),
-                          const SizedBox(width: 10),
-                          Text(cat.name),
-                        ],
-                      ),
-                    );
-                  }).toList(),
+                  items: dropdownItems,
                   onChanged: (cat) {
-                    setState(() {
-                      selectedCategory = cat;
-                    });
+                    if (cat?.id == _addCustomCategorySentinel.id) {
+                      // Trigger custom category creation flow when sentinel is selected
+                      _showAddCustomCategoryDialog();
+                    } else if (cat != null) {
+                      setState(() {
+                        selectedCategory = cat;
+                      });
+                    }
                   },
                 );
               }),
-              const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const AddCategoryDialog(),
-                    );
-                  },
-                  icon: const Icon(Icons.add_circle_outline, size: 18),
-                  label: const Text('Add Custom Category', style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 24),
               Card(
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 child: Padding(
@@ -217,7 +323,6 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       ),
                       IconButton(
                         onPressed: () async {
-                          // 🚫 KEYBOARD CLOSE KARNE KE LIYE:
                           FocusScope.of(context).unfocus();
 
                           final now = DateTime.now();
@@ -271,17 +376,24 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       selectedCategory = controller.categories.first;
                     }
 
-                    if (selectedCategory == null) {
+                    if (selectedCategory == null || selectedCategory!.id == _addCustomCategorySentinel.id) {
                       Get.snackbar('Error', 'Please select a valid category');
                       return;
                     }
+
+                    // If a temp category was used and somehow not yet in controller categories, make sure it's added
+                    final finalCategory = controller.categories.firstWhereOrNull(
+                          (c) => c.name.toLowerCase() == selectedCategory!.name.toLowerCase(),
+                    );
+
+                    final categoryIdToUse = finalCategory?.id ?? selectedCategory!.id;
 
                     if (isEdit) {
                       controller.editExpense(ExpenseModel(
                         id: widget.existingExpense!.id,
                         title: titleController.text.trim(),
                         amount: double.parse(amountController.text),
-                        categoryId: selectedCategory!.id,
+                        categoryId: categoryIdToUse,
                         note: noteController.text.trim(),
                         date: selectedDate,
                       ));
@@ -289,7 +401,7 @@ class _AddExpenseSheetState extends State<AddExpenseSheet> {
                       controller.addExpense(
                         title: titleController.text.trim(),
                         amount: double.parse(amountController.text),
-                        categoryId: selectedCategory!.id,
+                        categoryId: categoryIdToUse,
                         note: noteController.text.trim(),
                         date: selectedDate,
                       );

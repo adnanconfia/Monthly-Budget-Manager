@@ -162,6 +162,13 @@ class DashboardScreen extends StatelessWidget {
                       color: const Color(0xFF6366F1),
                       icon: Icons.south_west_rounded,
                       theme: theme,
+                      onTap: () {
+                        // 👈 Clicking Income card opens the Income Input Dialog
+                        showDialog(
+                          context: context,
+                          builder: (context) => const IncomeInputDialog(isFirstTime: false),
+                        );
+                      },
                     ),
                     _buildStatPill(
                       title: 'EXPENSE',
@@ -354,32 +361,40 @@ class DashboardScreen extends StatelessWidget {
     required Color color,
     required IconData icon,
     required ThemeData theme,
+    VoidCallback? onTap, // 👈 Added optional onTap callback parameter
   }) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: theme.cardTheme.color,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.15), width: 1.5),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(height: 4),
-          Text(
-            title,
-            style: TextStyle(color: theme.disabledColor, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: theme.cardTheme.color,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withOpacity(0.15), width: 1.5),
           ),
-          const SizedBox(height: 2),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Text(
-              val,
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(height: 4),
+              Text(
+                title,
+                style: TextStyle(color: theme.disabledColor, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5),
+              ),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  val,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
