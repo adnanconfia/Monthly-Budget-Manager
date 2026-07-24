@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:daily_expense_tracker/controllers/auth_controller.dart';
-import 'package:daily_expense_tracker/views/auth/login_screen.dart';
+import 'package:daily_expense_tracker/views/auth/otp_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -46,7 +46,6 @@ class _SignupScreenState extends State<SignupScreen> {
     });
   }
 
-  // Calculate Password Strength Score (0 to 6)
   int get _strengthScore {
     if (_passwordController.text.isEmpty) return 0;
     int score = 0;
@@ -59,7 +58,6 @@ class _SignupScreenState extends State<SignupScreen> {
     return score;
   }
 
-  // Get matching Label
   String get _strengthLabel {
     if (_strengthScore == 0) return '';
     if (_strengthScore < 3) return 'Weak';
@@ -67,7 +65,6 @@ class _SignupScreenState extends State<SignupScreen> {
     return 'Strong ✓';
   }
 
-  // Get matching Color
   Color get _strengthColor {
     if (_strengthScore == 0) return Colors.grey;
     if (_strengthScore < 3) return Colors.red;
@@ -86,7 +83,6 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // Modern Material 3 Dialog for Password Requirements
   void _showPasswordHelpDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -103,7 +99,6 @@ class _SignupScreenState extends State<SignupScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
                 Row(
                   children: [
                     const Text('🔐', style: TextStyle(fontSize: 26)),
@@ -121,8 +116,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-
-                // Description
                 Text(
                   'A strong password protects your account and your financial data.\n\nTo create a secure password, make sure it meets the following requirements:',
                   style: TextStyle(
@@ -132,8 +125,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-
-                // Requirements Checklist
                 _buildDialogChecklistItem('At least 8 characters', isDark),
                 _buildDialogChecklistItem('One uppercase letter (A–Z)', isDark),
                 _buildDialogChecklistItem('One lowercase letter (a–z)', isDark),
@@ -141,8 +132,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 _buildDialogChecklistItem('One special character (! @ # \$ % ^ & *)', isDark),
                 _buildDialogChecklistItem('No leading or trailing spaces', isDark),
                 const SizedBox(height: 20),
-
-                // Tips Section
                 Text(
                   '💡 Tips',
                   style: TextStyle(
@@ -158,8 +147,6 @@ class _SignupScreenState extends State<SignupScreen> {
                 _buildDialogTipItem('Mix uppercase, lowercase, numbers and symbols.', isDark),
                 _buildDialogTipItem('Use something unique that only you can remember.', isDark),
                 const SizedBox(height: 24),
-
-                // Example Strong Password
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
@@ -192,8 +179,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-
-                // Close Button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
@@ -368,7 +353,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   )),
                   const SizedBox(height: 12),
 
-                  // Premium Password Strength Indicator
+                  // Password Strength Indicator
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -412,7 +397,6 @@ class _SignupScreenState extends State<SignupScreen> {
                       ),
                       const SizedBox(height: 8),
 
-                      // "How to create a strong password?" Help Link
                       GestureDetector(
                         onTap: () => _showPasswordHelpDialog(context),
                         child: Padding(
@@ -459,22 +443,20 @@ class _SignupScreenState extends State<SignupScreen> {
                   )),
                   const SizedBox(height: 24),
 
-                  // Signup Button
+                  // Signup Button -> Sends OTP & Goes to OTP Verification Screen
                   Obx(() => ElevatedButton(
                     onPressed: authController.isLoading.value
                         ? null
                         : () async {
                       if (_formKey.currentState!.validate()) {
-                        final success = await authController.signUp(
-                          _nameController.text.trim(),
-                          _emailController.text.trim(),
-                          _phoneController.text.trim(),
-                          _passwordController.text,
-                        );
-
+                        final success = await authController.sendOTP(_emailController.text.trim());
                         if (success) {
-                          await Future.delayed(const Duration(seconds: 1));
-                          Get.offAll(() =>  LoginScreen());
+                          Get.to(() => OTPScreen(
+                            name: _nameController.text.trim(),
+                            email: _emailController.text.trim(),
+                            phone: _phoneController.text.trim(),
+                            password: _passwordController.text,
+                          ));
                         }
                       }
                     },
